@@ -1,0 +1,217 @@
+$ npm init
+
+Press ^C at any time to quit.
+package name: (meanauthapp)
+version: (1.0.0)
+description:
+entry point: (index.js) app.js // note
+test command:
+git repository:
+keywords:
+author:
+license: (ISC)
+About to write to C:\Users\amit\Desktop\meanauthapp\package.json:
+
+{
+  "name": "meanauthapp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
+
+
+Is this ok? (yes) yes
+# package.json
+{
+  "name": "meanauthapp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app"  //
+  },
+  "dependencies": {  //
+    "express" : "*",
+    "mongoose" : "*",
+    "bcryptjs" : "*",
+    "cors" : "*",
+    "jsonwebtoken": "*",
+    "body-parser" : "*",
+    "passport" : "*",
+    "passport-jwt": "*"
+  },
+  "author": "",
+  "license": "ISC"
+}
+# npm install
+# app.js
+const express = require('express');
+const path = require('path');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const passport = require('passport');
+const mongoose = require('mongoose');
+
+const app = express();
+const port = 3000;
+
+app.listen(port, ()=>{
+    console.log('app runnning on port: ' + port)
+})
+# npm start
+#^C 
+# npm install -g nodemon
+# nodemon
+# app.js
+app.get('/',(req,res)=>{
+    res.send('Invalid Endpoint ');
+});
+# app.js
+// Cors Middleware
+app.use(cors());
+// Body Parser Middleware
+app.use(bodyParser.json());
+# app.js
+const users = require('./routes/users.js');
+app.use('/users', users);
+# routes/users.js 
+const express = require('express');
+const router = express.Router();
+
+router.get('/register', (req, res, next)=>{
+    res.send('Register');
+});
+
+module.exports = router;
+# app.js
+app.use(express.static(path.join(__dirname, 'public')));
+# create public folder
+# meanauthapp/config/database.js
+module.exports = {
+    database: "mongodb://localhost:27017/meanauth",
+    secret: "yoursecret"
+}
+# app.js
+const config = require('./config/database');
+mongoose.connect(config.database);
+mongoose.connection.on('connected', ()=>{
+    console.log('Connected to the database'+ config.database);
+});
+mongoose.connection.on('error', (err)=>{
+    console.log('Database error: '+ err);
+});
+# routes/user.js
+// correction of get request to post
+router.post('/register', (req, res, next)=>{
+    res.send('Register');
+});
+
+# models/user.js
+const UserSchema = mongoose.Schema({
+    name: {
+        type: String
+    },
+    email: {
+        type: String,
+        required : true
+    },
+    username: {
+        type: String,
+        required: true
+    },
+    password: {
+        type: String,
+        required: true
+    }
+});
+
+const User = module.exports = mongoose.model('User', UserSchema);
+
+module.exports.getUserById = function(id, callback){
+    User.findById(id, callback);
+}
+module.exports.getUserByUsername = function(username, callback){
+    const query = { username: username }
+    User.findOne(query, callback);
+}
+module.exports.addUser = function(newUser, callback){ 
+    bcrypt.genSalt(10, function(err, salt) {
+        bcrypt.hash("B4c0/\/", salt, function(err, hash) {
+            // Store hash in your password DB.
+            if(err) throw err;            
+            newUser.password = hash;
+            newUser.save(callback);
+        });
+    });
+}
+
+# routes/users
+const User = require('../models/user');
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
+
+router.post('/register', (req, res, next)=>{
+    let newUser = new User({
+        name: req.body.name,
+        email: req.body.email,
+        username: req.body.username,
+        password: req.body.password 
+    });
+    User.addUser(newUser, (err, user)=>{
+        if(err){
+            res.json({success: false, msg:'Failed to register user '});
+        }else{
+            res.json({success: true, msg:'User registered '});
+        }
+    });
+});
+
+# models/user
+module.exports.addUser = function(newUser, callback){ 
+    bcrypt.genSalt(10, function(err, salt) {
+        bcrypt.hash("B4c0/\/", salt, function(err, hash) {
+            // Store hash in your password DB.
+            newUser.password = hash;
+            newUser.save(callback);
+        });
+    });
+}
+# C:\mongodb>.\bin\mongod  // cmd one 
+# C:\mongodb>.\bin\mongo  // cmd two
+# postman
+post http://localhost:3000/users/register
+key Content-Type 
+value application/json 
+
+
+{
+	"name": "john doe",
+	"email": "john@gmail.com",
+	"username": "john",
+	"password": 12345
+}
+
+#
+> show dbs
+admin     0.000GB
+local     0.000GB
+meanauth  0.000GB
+> use meanauth
+switched to db meanauth
+> show collections
+users
+> db.users.find().pretty()
+{
+        "_id" : ObjectId("5b995f8fa184220f20fca4fb"),
+        "name" : "john doe",
+        "email" : "john@gmail.com",
+        "username" : "john",
+        "password" : "$2a$10$o2PlChNnzGVsOhI/YUCJo.Hy25Glg99tKbwIponFYUYr3EHKSEmVS",
+        "__v" : 0
+}
